@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
 
     test_only = True
-    overwrite_detectors = False
+    overwrite_detectors = True
     train_features = fm.my_load(os.path.join(path, "train.pkl"))
     feature_names = fm.my_load(os.path.join(path, "feature_names.pkl"))
 
@@ -275,5 +275,5 @@ if __name__ == '__main__':
     # with open(f'test_results_{i}.json', 'w') as f:
     #     json.dump(results, f)
 
-
+    fm.my_load(results_list, os.path.join(path, f'test_results.pkl'))
     print("")
