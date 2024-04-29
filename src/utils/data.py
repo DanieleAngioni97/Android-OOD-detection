@@ -8,7 +8,96 @@ from scipy.sparse import (random,
                           coo_matrix,
                           csr_matrix,
                           vstack)
-from tqdm import tqdm
+import os
+import json
+import datetime
+import numpy as np
+from sklearn.feature_extraction import DictVectorizer
+from os.path import join
+from utils.fm import my_load, my_save
+from typing import Optional, List, Tuple, Union
+
+
+DS_ROOT_PATH = '../data/extended-features'
+
+## Loading features
+def load_dataset(ds_root_path: str = DS_ROOT_PATH,
+                 updated: bool = True,
+                 reduced=None):
+    """
+    The function to load features in the Tesseract dataset. Please note that you have to parametrize the names of the files opened, to load the right file.
+    """
+
+    X_fname = 'extended-features-X'
+    y_fname = 'extended-features-y'
+    meta_fname = 'extended-features-meta'
+
+    dataset_mode = ''
+    if updated:
+        dataset_mode += '-updated'
+        X_fname = f"{X_fname}{dataset_mode}"
+        y_fname = f"{y_fname}{dataset_mode}"
+        meta_fname = f"{meta_fname}{dataset_mode}"
+
+    if reduced is not None:
+        assert reduced in ('1k', '10k')
+        dataset_mode += f'-reduced-{reduced}'
+        X_fname = f"{X_fname}{dataset_mode}"
+
+    X_fname = f"{X_fname}.json"
+    y_fname = f"{y_fname}.json"
+    meta_fname = f"{meta_fname}.json"
+
+
+    vec_path = join(ds_root_path, f"vec{dataset_mode}.pkl")
+    ds_path = join(ds_root_path, f"dataset{dataset_mode}.pkl")
+
+    if not os.path.exists(ds_path):
+        print(f'Loading and processing dataset...')
+        with open(join(ds_root_path, X_fname), 'r') as f:
+            X = json.load(f)
+
+        print('Loading labels...')
+        with open(join(ds_root_path, y_fname), 'rt') as f:
+            y = json.load(f)
+
+        print('Loading metadata and timestamps...')
+        with open(join(ds_root_path, meta_fname), 'rt') as f:
+            meta = json.load(f)
+        T = [o['dex_date'] for o in meta]
+        T = np.array([datetime.datetime.strptime(o, '%Y-%m-%dT%H:%M:%S') if "T" in o
+                      else datetime.datetime.strptime(o, '%Y-%m-%d %H:%M:%S') for o in T])
+
+        # Convert to numpy array and get feature names
+        vec = DictVectorizer()
+        X = vec.fit_transform(X).astype("float32")
+        y = np.asarray(y)
+        feature_names = vec.get_feature_names_out()
+
+        my_save(vec, vec_path)
+
+        # Get time index of each sample for easy reference
+        time_index = {}
+        for i in range(len(T)):
+            t = T[i]
+            if t.year not in time_index:
+                time_index[t.year] = {}
+            if t.month not in time_index[t.year]:
+                time_index[t.year][t.month] = []
+            time_index[t.year][t.month].append(i)
+
+        data = (X, y, time_index, feature_names, T, meta)
+        data_names = ('X', 'y', 'time_index', 'feature_names', 'T', 'meta')
+        data_dict = {k: v for k, v in zip(data_names, data)}
+        my_save(data_dict, ds_path)
+    else:
+        data_dict = my_load(ds_path)
+
+
+
+    return data_dict
+
+
 
 
 class SparseDataset(Dataset):
@@ -18,7 +107,10 @@ class SparseDataset(Dataset):
 
     def __init__(self, data: Union[np.ndarray, coo_matrix, csr_matrix],
                  targets: Union[np.ndarray, coo_matrix, csr_matrix],
-                 transform: bool = None):
+                 timestamps: Optional[Union[np.ndarray, coo_matrix, csr_matrix]],
+                 metadata: Optional[Union[np.ndarray, coo_matrix, csr_matrix]],
+                 transform: bool = None,
+                 get_meta: bool = False):
 
         # Transform data coo_matrix to csr_matrix for indexing
         if type(data) == coo_matrix:
@@ -32,10 +124,16 @@ class SparseDataset(Dataset):
         else:
             self.targets = targets
 
+        self.timestamps = timestamps
+        self.metadata = metadata
+        self.get_meta = get_meta
         self.transform = transform  # Can be removed
 
     def __getitem__(self, index: int):
-        return self.data[index], self.targets[index]
+        if not self.get_meta:
+            return self.data[index], self.targets[index]
+        else:
+            return self.data[index], self.targets[index], self.timestamps[index], self.metadata[index]
 
     def __len__(self):
         return self.data.shape[0]
@@ -152,3 +250,9 @@ def reject_thr(l, s, ood_s, thr):
   # print("Remaining labels:", remaining_labels)
 
   return remaining_labels, remaining_scores, rej_labels, rej_scores
+
+
+if __name__ == '__main__':
+    data_dict = load_dataset()
+    X, y, time_index, feature_names, T = tuple(data_dict.values())
+    print("")
