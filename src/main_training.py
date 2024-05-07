@@ -45,6 +45,7 @@ def main():
     torch_svm_fname = f"linear_torch-pretrained_svm"
     sklearn_svm_fname = 'sklearn_svm'
 
+    os.makedirs(path, exist_ok=True)
 
     ##############################################################################################################
     # Loading training and testing features
@@ -276,61 +277,61 @@ def main():
     # ax.set_ylim(0, 1)
     # fig.show()
 
-
-    fig, ax = ut_viz.create_figure(fontsize=15, figsize=(5, 10))
-    n_mw_rej = [(y == 1).sum() for y in rej_pile]
-    n_gw_rej = [(y == 0).sum() for y in rej_pile]
-
-    n_gw = [(y_test == 0).sum() for y_test in y_tests]
-    n_mw = [(y_test == 1).sum() for y_test in y_tests]
-
-
-    for x, y in test_loader_list[0]:
-        out = classifier(x)
-        score = -t * torch.log(torch.sigmoid(out / t))
-
-
-    print("")
-    return
-    detectors_path = os.path.join(path, f"detectors.pkl")
-    if overwrite_detectors or (not os.path.isfile(detectors_path)):
-        # The detector that we want to test from the paper [1] - [6] - [26] (in addition to the MaxSoftMax baseline detector)
-        print("Creating OOD Detectors")
-
-        detectors = {}
-        detectors["MaxSoftmax"] = MaxSoftmax(torch.load(os.path.join(path, 'linear_retrained_CE_loss.pt')))
-        detectors["Entropy"] = Entropy(torch.load(os.path.join(path, 'linear_retrained_CE-Entropy_loss.pt')))
-        detectors["EnergyBased"] = EnergyBased(torch.load(os.path.join(path, 'linear_retrained_CE-Energy_loss.pt')))
-        detectors["OpenMax"] = OpenMax(torch.load(os.path.join(path, 'linear_retrained_CE_loss.pt')))
-
-        print(f"> Fitting {len(detectors)} detectors")
-
-        for name, detector in detectors.items():
-            print(f"--> Fitting {name}")
-            detector.fit(train_loader, device=device)
-            # fm.my_save(detector, os.path.join(path, f"detector-{name}.pkl"))
-        fm.my_save(detectors, os.path.join(path, f"detectors.pkl"))
-    else:
-        detectors = fm.my_load(detectors_path)
-
-    import json
-    from utils.evaluation import detector_scores
-
-    datasets = {}
-
-    results_list = []
-    for i, loader in enumerate(test_loader_list):
-        datasets["OOD test set "] = loader  # todo: this may be deleted
-        results = detector_scores(detectors, datasets)
-        results_list.append(results)
-
-    # Saving the results in a json file
-    fm.my_save(results_list, os.path.join(path, f'test_results.pkl'))
-    # with open(f'test_results_{i}.json', 'w') as f:
-    #     json.dump(results, f)
-
-    fm.my_load(results_list, os.path.join(path, f'test_results.pkl'))
-    print("")
+    #
+    # fig, ax = ut_viz.create_figure(fontsize=15, figsize=(5, 10))
+    # n_mw_rej = [(y == 1).sum() for y in rej_pile]
+    # n_gw_rej = [(y == 0).sum() for y in rej_pile]
+    #
+    # n_gw = [(y_test == 0).sum() for y_test in y_tests]
+    # n_mw = [(y_test == 1).sum() for y_test in y_tests]
+    #
+    #
+    # for x, y in test_loader_list[0]:
+    #     out = classifier(x)
+    #     score = -t * torch.log(torch.sigmoid(out / t))
+    #
+    #
+    # print("")
+    # return
+    # detectors_path = os.path.join(path, f"detectors.pkl")
+    # if overwrite_detectors or (not os.path.isfile(detectors_path)):
+    #     # The detector that we want to test from the paper [1] - [6] - [26] (in addition to the MaxSoftMax baseline detector)
+    #     print("Creating OOD Detectors")
+    #
+    #     detectors = {}
+    #     detectors["MaxSoftmax"] = MaxSoftmax(torch.load(os.path.join(path, 'linear_retrained_CE_loss.pt')))
+    #     detectors["Entropy"] = Entropy(torch.load(os.path.join(path, 'linear_retrained_CE-Entropy_loss.pt')))
+    #     detectors["EnergyBased"] = EnergyBased(torch.load(os.path.join(path, 'linear_retrained_CE-Energy_loss.pt')))
+    #     detectors["OpenMax"] = OpenMax(torch.load(os.path.join(path, 'linear_retrained_CE_loss.pt')))
+    #
+    #     print(f"> Fitting {len(detectors)} detectors")
+    #
+    #     for name, detector in detectors.items():
+    #         print(f"--> Fitting {name}")
+    #         detector.fit(train_loader, device=device)
+    #         # fm.my_save(detector, os.path.join(path, f"detector-{name}.pkl"))
+    #     fm.my_save(detectors, os.path.join(path, f"detectors.pkl"))
+    # else:
+    #     detectors = fm.my_load(detectors_path)
+    #
+    # import json
+    # from utils.evaluation import detector_scores
+    #
+    # datasets = {}
+    #
+    # results_list = []
+    # for i, loader in enumerate(test_loader_list):
+    #     datasets["OOD test set "] = loader  # todo: this may be deleted
+    #     results = detector_scores(detectors, datasets)
+    #     results_list.append(results)
+    #
+    # # Saving the results in a json file
+    # fm.my_save(results_list, os.path.join(path, f'test_results.pkl'))
+    # # with open(f'test_results_{i}.json', 'w') as f:
+    # #     json.dump(results, f)
+    #
+    # fm.my_load(results_list, os.path.join(path, f'test_results.pkl'))
+    # print("")
 
 
 if __name__ == '__main__':
