@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from torchmetrics.functional.classification import binary_roc
 from sklearn.metrics import f1_score, roc_curve, roc_auc_score
 import torch
+import utils
+from sklearn.utils.validation import check_consistent_length, column_or_1d, _check_pos_label_consistency
 
 def plot_roc(labels, scores):
   # Assuming you have scores and labels as numpy arrays
@@ -148,3 +150,92 @@ def detector_scores(detectors, datasets, device='cpu'):
               detector_results["logits"] = torch.cat(detector_results["logits"]).numpy()
           results[detector_name] = detector_results
   return results
+
+
+
+def get_outputs(clf, X_tests):
+    """
+    This is valid only for torch models for now
+    """
+    if not isinstance(X_tests, list):
+        X_tests = [X_tests]
+
+    scores = []
+
+    for X_test in X_tests:
+        if not isinstance(clf, torch.nn.Module):
+            score = clf.decision_function(X_test)
+        else:
+            X_test = utils.data.sparse_coo_to_tensor(X_test.tocoo())
+            score = clf(X_test).detach().numpy()
+        scores.append(score)
+
+    return scores
+
+def _get_predictions(outputs):
+    if not isinstance(outputs, list):
+        outputs = []
+    y_preds = []
+    for outs in outputs:
+        if len(outs.shape) == 1:
+            y_pred = (outs > 0).astype(float)
+        else:
+            y_pred = outs.argmax(axis=1)
+        y_preds.append(y_pred)
+    # y_preds = [(outs > 0).astype(float) for outs in outputs]
+    return y_preds
+def get_predictions(clf, X_tests):
+    outputs = get_outputs(clf, X_tests)
+    y_preds = _get_predictions(outputs)
+    return y_preds
+
+
+def my_calibration_curve(
+    y_true,
+    y_prob,
+    *,
+    pos_label=None,
+    n_bins=5,
+    strategy="uniform",
+):
+    """
+    Slight modification of sklearn.calibration.calibration_curve
+    """
+    y_true = column_or_1d(y_true)
+    y_prob = column_or_1d(y_prob)
+    check_consistent_length(y_true, y_prob)
+    pos_label = _check_pos_label_consistency(pos_label, y_true)
+
+    if y_prob.min() < 0 or y_prob.max() > 1:
+        raise ValueError("y_prob has values outside [0, 1].")
+
+    labels = np.unique(y_true)
+    if len(labels) > 2:
+        raise ValueError(
+            f"Only binary classification is supported. Provided labels {labels}."
+        )
+    y_true = y_true == pos_label
+
+    if strategy == "quantile":  # Determine bin edges by distribution of data
+        quantiles = np.linspace(0, 1, n_bins + 1)
+        bins = np.percentile(y_prob, quantiles * 100)
+    elif strategy == "uniform":
+        bins = np.linspace(0.0, 1.0, n_bins + 1)
+    else:
+        raise ValueError(
+            "Invalid entry to 'strategy' input. Strategy "
+            "must be either 'quantile' or 'uniform'."
+        )
+
+    binids = np.searchsorted(bins[1:-1], y_prob)
+
+    bin_sums = np.bincount(binids, weights=y_prob, minlength=len(bins))
+    bin_true = np.bincount(binids, weights=y_true, minlength=len(bins))
+    bin_total = np.bincount(binids, minlength=len(bins))
+
+    nonzero = bin_total != 0
+    prob_true = bin_true[nonzero] / bin_total[nonzero]
+    prob_pred = bin_sums[nonzero] / bin_total[nonzero]
+
+    ece = np.sum(np.abs(prob_true - prob_pred) * bin_total[nonzero]) / bin_total[nonzero].sum()
+    return prob_true, prob_pred, ece, bin_total[nonzero]
