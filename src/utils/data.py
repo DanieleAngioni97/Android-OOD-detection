@@ -16,6 +16,8 @@ from sklearn.feature_extraction import DictVectorizer
 from os.path import join
 from utils.fm import my_load, my_save
 from typing import Optional, List, Tuple, Union
+from tesseract import temporal
+from utils.utils import set_all_seed
 
 
 DS_ROOT_PATH = '../data/extended-features'
@@ -33,16 +35,19 @@ def load_dataset(ds_root_path: str = DS_ROOT_PATH,
     meta_fname = 'extended-features-meta'
 
     dataset_mode = ''
+
+    if reduced is not None:
+        updated = True
+
     if updated:
         dataset_mode += '-updated'
-        X_fname = f"{X_fname}{dataset_mode}"
-        y_fname = f"{y_fname}{dataset_mode}"
-        meta_fname = f"{meta_fname}{dataset_mode}"
+    y_fname = f"{y_fname}{dataset_mode}"
+    meta_fname = f"{meta_fname}{dataset_mode}"
 
     if reduced is not None:
         assert reduced in ('1k', '10k')
         dataset_mode += f'-reduced-{reduced}'
-        X_fname = f"{X_fname}{dataset_mode}"
+    X_fname = f"{X_fname}{dataset_mode}"
 
     X_fname = f"{X_fname}.json"
     y_fname = f"{y_fname}.json"
@@ -99,6 +104,70 @@ def load_dataset(ds_root_path: str = DS_ROOT_PATH,
 
 
 
+def load_and_preprocess_dataset(ds_root_path: str = DS_ROOT_PATH,
+                                updated=True,
+                                reduced=None,
+                                train_size=12,
+                                test_size=1,
+                                use_only_train_features=True,
+                                max_train_samples=None):
+
+    data_dict = load_dataset(ds_root_path=ds_root_path,
+                             updated=updated,
+                             reduced=reduced)
+    X, y, time_index, feature_names, T, meta = tuple(data_dict.values())
+    splits = temporal.time_aware_train_test_split(
+        X, y, T, meta, train_size=train_size, test_size=test_size, granularity='month')
+    X_train, X_tests, y_train, y_tests, t_train, t_tests, meta_train, meta_tests = splits
+
+
+    print(f"### Initial X_train shape: {X_train.shape}")
+    if use_only_train_features:
+        # remove features that do not appear in the train set
+        idx_tr_features = np.array(X_train.sum(axis=0)).flatten() > 0
+        X_train = X_train[:, idx_tr_features]
+        X_tests = [X_test[:, idx_tr_features] for X_test in X_tests]
+        feature_names = np.array(feature_names)[idx_tr_features]
+        print(f"### features present only in train set: {idx_tr_features.sum()}")
+
+        # remove samples with all-zero features from the train set
+        idx_non_zero_tr_samples = np.array(X_train.sum(axis=1)).flatten() > 0
+        X_train = X_train[idx_non_zero_tr_samples, :]
+        y_train = y_train[idx_non_zero_tr_samples]
+        t_train = t_train[idx_non_zero_tr_samples]
+        meta_train = meta_train[idx_non_zero_tr_samples]
+
+        print(f"### number of all-zero samples removed from train set: "
+              f"{idx_non_zero_tr_samples.size - idx_non_zero_tr_samples.sum()}")
+
+    print(f"### Number of features not present in train set: {X_train.shape[1]}")
+
+    if isinstance(max_train_samples, int):
+        X_train = X_train[:max_train_samples, :]
+        y_train = y_train[:max_train_samples]
+        t_train = t_train[:max_train_samples]
+        meta_train = meta_train[:max_train_samples]
+
+    return X_train, y_train, t_train, meta_train, X_tests, y_tests, t_tests, meta_tests, feature_names
+
+
+def create_dataloaders(X_train, y_train, t_train, meta_train,
+                       X_tests, y_tests, t_tests, meta_tests,
+                       train_batch_size=64, test_batch_size=1000,
+                       random_seed=0):
+    set_all_seed(random_seed)
+    sparse_dataset = SparseDataset(X_train, y_train, t_train, meta_train)
+    train_loader = DataLoader(sparse_dataset, batch_size=train_batch_size, shuffle=True,
+                              collate_fn=dense_batch_collate)
+
+    test_loaders = []
+    for X_test, y_test, t_test, meta_test in zip(X_tests, y_tests, t_tests, meta_tests):
+        sparse_dataset = SparseDataset(X_test, y_test, t_test, meta_test)
+        test_loader_i = DataLoader(sparse_dataset, batch_size=test_batch_size, shuffle=False,
+                                   collate_fn=dense_batch_collate)
+        test_loaders.append(test_loader_i)
+
+    return train_loader, test_loaders
 
 class SparseDataset(Dataset):
     """

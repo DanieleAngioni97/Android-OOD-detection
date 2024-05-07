@@ -2,7 +2,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import torch.nn
 
-import utils
+import utils.evaluation as ut_eval
+import math
+import numpy as np
 
 
 def format_mpl(font_size: int = 30):
@@ -20,8 +22,9 @@ def create_figure(nrows=1, ncols=1, figsize=(5, 5), squeeze=True, fontsize=30):
     return fig, axs
 
 
-def evaluate_and_plot_metrics(clf, X_tests, y_tests, ax=None,
-                              title='', ylabel=''):
+def plot_metrics(y_preds, y_tests, ax=None,
+                              title='', ylabel='',
+                 plot_rec=True, plot_prec=True, plot_f1=True, plot_gw=True):
     from sklearn.metrics import precision_recall_fscore_support
 
     LINESTYLE_DICT = {'gw': 'dashed', 'mw': 'solid'}
@@ -32,35 +35,41 @@ def evaluate_and_plot_metrics(clf, X_tests, y_tests, ax=None,
         fig, ax = create_figure(fontsize=15)
 
     for j, class_name in enumerate(('gw', 'mw')):
+        if (class_name == 'gw') and not plot_gw:
+            continue
         f1_list, prec_list, rec_list = [], [], []
-        for i, (X_test, y_test) in enumerate(zip(X_tests, y_tests)):
-            if not isinstance(clf, torch.nn.Module):
-                y_pred = clf.predict(X_test)
-            else:
-                X_test = utils.data.sparse_coo_to_tensor(X_test.tocoo())
-                y_pred = (clf(X_test).detach().numpy() > 0).astype(float)
+        for i, (y_pred, y_test) in enumerate(zip(y_preds, y_tests)):
             # pr, rec, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='binary')
-            pr, rec, f1, _ = precision_recall_fscore_support(y_test, y_pred)
-            prec_list.append(pr[j])
-            rec_list.append(rec[j])
-            f1_list.append(f1[j])
+            try:
+                pr, rec, f1, _ = precision_recall_fscore_support(y_test, y_pred)
+                prec_list.append(pr[j])
+                rec_list.append(rec[j])
+                f1_list.append(f1[j])
+            except:
+                prec_list.append(math.nan)
+                rec_list.append(math.nan)
+                f1_list.append(math.nan)
+
 
         common_args = {'alpha': .7}
-        ax.plot(prec_list, label=f'precision ({class_name})',
-                color=COLOR_DICT['prec'],
-                marker=MARKER_DICT['prec'],
-                linestyle=LINESTYLE_DICT[class_name],
-                **common_args)
-        ax.plot(rec_list, label=f'recall ({class_name})',
-                color=COLOR_DICT['rec'],
-                marker=MARKER_DICT['prec'],
-                linestyle=LINESTYLE_DICT[class_name],
-                **common_args)
-        ax.plot(f1_list, label=f'F1-score ({class_name})',
-                color=COLOR_DICT['f1'],
-                marker=MARKER_DICT['prec'],
-                linestyle=LINESTYLE_DICT[class_name],
-                **common_args)
+        if plot_prec:
+            ax.plot(prec_list, label=f'precision ({class_name})',
+                    color=COLOR_DICT['prec'],
+                    marker=MARKER_DICT['prec'],
+                    linestyle=LINESTYLE_DICT[class_name],
+                    **common_args)
+        if plot_rec:
+            ax.plot(rec_list, label=f'recall ({class_name})',
+                    color=COLOR_DICT['rec'],
+                    marker=MARKER_DICT['prec'],
+                    linestyle=LINESTYLE_DICT[class_name],
+                    **common_args)
+        if plot_f1:
+            ax.plot(f1_list, label=f'F1-score ({class_name})',
+                    color=COLOR_DICT['f1'],
+                    marker=MARKER_DICT['prec'],
+                    linestyle=LINESTYLE_DICT[class_name],
+                    **common_args)
     ax.set_xlabel('month')
     ax.set_title(title)
     ax.set_ylabel(ylabel)
@@ -69,3 +78,37 @@ def evaluate_and_plot_metrics(clf, X_tests, y_tests, ax=None,
 
     # fig.tight_layout()
     # fig.show()
+
+def evaluate_and_plot_metrics(clf, X_tests, y_tests, ax=None,
+                              title='', ylabel=''):
+    y_preds = ut_eval.get_predictions(clf, X_tests)
+    plot_metrics(y_preds, y_tests, ax=ax, title=title, ylabel=ylabel)
+
+def plot_dataset_stats(y_tests, ax=None):
+    if ax is None:
+        fig, ax = create_figure(fontsize=15, figsize=(5, 10))
+    n_samples = [y_test.size for y_test in y_tests]
+    n_mw = [(y_test == 1).sum() for y_test in y_tests]
+    n_gw = [(y_test == 0).sum() for y_test in y_tests]
+    ax.plot(n_mw, label='# malware', marker='^', color='blue')
+    ax.plot(n_gw, label='# goodware', marker='v', color='red')
+    ax.legend()
+    # dates = [f"{t_test[0].year}-{t_test[0].month}" for t_test in t_tests]
+    # ax.set_xticklabels(dates, rotation=50)
+    #
+    # fig.tight_layout()
+    # fig.show()
+    # fig.savefig(file_path)
+
+
+def plot_weight_distribution(clf, ax=None):
+    if ax is None:
+        fig, ax = create_figure(fontsize=15, figsize=(5, 10))
+    w_sorted = np.sort(np.abs(clf.coef_.flatten()))[::-1]
+    ax.plot(w_sorted)
+    ax.set_ylabel('|w|')
+    ax.set_xlabel('# w')
+    ax.set_xscale('log')
+
+
+
