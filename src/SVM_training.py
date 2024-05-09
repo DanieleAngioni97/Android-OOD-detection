@@ -12,33 +12,58 @@ from pytorch_ood.loss import EnergyRegularizedLoss, EntropicOpenSetLoss, CrossEn
 from pytorch_ood.detector import MaxSoftmax, EnergyBased, Entropy, OpenMax
 from sklearn.metrics import roc_auc_score
 from utils.data import load_dataset
+from itertools import chain
+
 
 if __name__ == '__main__':
     
     path_0 = "data/datasets_and_clf/"
     path_1 = "data/ital-IA_clf_and_datasets/"
     path_2 = "data/extended-features/"
-    train_features = fm.my_load(os.path.join(path_1, "train.pkl"))
+    # train_features = fm.my_load(os.path.join(path_2, "train.pkl"))
     
     """
     test_features = fm.my_load(os.path.join(path_1, "test-1.pkl"))
     test_features_w = fm.my_load(os.path.join(path_0, "tests_monthly.pkl"))
     """
 
-    x = load_dataset(os.path.join(path_2, "extended-features-X.json"))
-    print(x)
+    ds = load_dataset(os.path.join(path_2))
+    print(ds.keys())
+    #print(ds['time_index'][2016][1])
 
-    print(test_features)
+    vs = [v for k,v in ds['time_index'][2014].items()]
+    vs = list(chain.from_iterable(vs))
+
+    # print(ds["X"][vs][0])
+
+    X_train = ds["X"][vs]
+    y_train = ds["y"][vs]
+
+    vs_t = [[v for k,v in ds['time_index'][2015].items()],
+            [v for k,v in ds['time_index'][2016].items()],
+            [v for k,v in ds['time_index'][2017].items()],
+            [v for k,v in ds['time_index'][2018].items()]]
+    
+    X_tests = []
+    y_tests = []
+    t_tests = []
+    for a in vs_t:
+        for i in range(12):
+            X_tests.append(ds["X"][a[i]])
+            y_tests.append(ds["y"][a[i]])
+            t_tests.append(ds["T"][a[i]])
+
+    print(len(X_tests))
 
     max_n_samples = -1
     b_size = 1000
 
-    n_test_months = len(test_features_w[0])
+    n_test_months = 4*12
     n_months_per_test = 1
     n_slots = n_test_months // n_months_per_test
     
     test_set_list = []
-    X_tests, y_tests, t_tests = test_features_w
+    # X_tests, y_tests, t_tests = test_features_w
     for i in range(n_slots):
         start = i * n_months_per_test
         end = (i + 1) * n_months_per_test
@@ -56,7 +81,7 @@ if __name__ == '__main__':
                                  collate_fn=ut_data.dense_batch_collate)
         test_loader_list.append(test_loader_i)
 
-    X_train, y_train, t_train = train_features
+    # X_train, y_train, t_train = train_features
 
     sparse_dataset = ut_data.SparseDataset(X_train[:max_n_samples], y_train[:max_n_samples])
     train_loader = DataLoader(sparse_dataset, batch_size=b_size, shuffle=True,
@@ -67,8 +92,7 @@ if __name__ == '__main__':
     """
     Main Training for the SVM
     """
-
-    classifier = LinearSVC()
+    classifier = LinearSVC(loss='hinge', random_state=0)
     classifier.fit(X_train, y_train)
     y_pred = classifier.predict(X_tests[0])
 
@@ -88,6 +112,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         for x, y in test_loader_list[0]:
             out = linear_b(x).numpy()
+            # print(out)
             scores_torch = np.append(scores_torch, out[:,1])
             y_pred_torch = np.append(y_pred_torch, np.argmax(out, axis=1))
             y_ts = np.append(y_ts, y)
@@ -97,6 +122,7 @@ if __name__ == '__main__':
 
     # OOD Detection methods applied
     overwrite_detectors = True
+    path = path_2
     detectors_path = os.path.join(path, f"detectors.pkl")
 
     if overwrite_detectors or (not os.path.isfile(detectors_path)):
@@ -114,7 +140,6 @@ if __name__ == '__main__':
         for name, detector in detectors.items():
             print(f"--> Fitting {name}")
             detector.fit(train_loader, device=device)
-            # fm.my_save(detector, os.path.join(path, f"detector-{name}.pkl"))
         fm.my_save(detectors, os.path.join(path, f"detectors.pkl"))
     else:
         detectors = fm.my_load(detectors_path)
@@ -132,8 +157,3 @@ if __name__ == '__main__':
 
     # Saving the results in a json file
     fm.my_save(results_list, os.path.join(path, f'test_monthly_results.pkl'))
-    # with open(f'test_results_{i}.json', 'w') as f:
-    #     json.dump(results, f)
-
-    # fm.my_load(results_list, os.path.join(path, f'test_results.pkl'))
-    # print("")
