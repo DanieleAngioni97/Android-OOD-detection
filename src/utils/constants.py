@@ -4,16 +4,8 @@ from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier,
 
 
 MODEL_CLASS_LIST = [
-    # SVC,
     LinearSVC,
-    LogisticRegression,
-    Perceptron,
-    SGDClassifier,
-    RidgeClassifier,
-    SGDOneClassSVM,
-    GradientBoostingClassifier,
-    RandomForestClassifier,
-    AdaBoostClassifier
+    RandomForestClassifier
 ]
 
 MODEL_NAME_LIST = [model_class.__name__ for model_class in MODEL_CLASS_LIST]
@@ -22,76 +14,25 @@ MODEL_NAME_TO_CLASS_DICT = {
     for model_name, model_class in zip(MODEL_NAME_LIST, MODEL_CLASS_LIST)
 }
 
+
+_common_hparams = {
+    'class_weight': {0: 1.0, 1: 10.0},
+    'verbose': 1
+}
+
 HPARAMS_DICT = {
     'LinearSVC': {
         'C': 1,
-        # 'class_weight': 'balanced'
-    },
-    # 'SVC': {
-    #     'C': 1,
-    #     'kernel': 'linear'
-    #     # 'class_weight': 'balanced'
-    # },
-    'LogisticRegression': {
-
-    },
-    'Perceptron': {
-        # 'early_stopping': True,
-        # 'validation_fraction': 0.2
-    },
-    'SGDClassifier': {
-        'loss': 'hinge'
-
-    },
-    'RidgeClassifier': {
-
-    },
-    'SGDOneClassSVM': {
-
-    },
-    'GradientBoostingClassifier': {
-
+        'class_weight': {0: 1.0, 1: 1.0}
     },
     'RandomForestClassifier': {
-
-    },
-    'AdaBoostClassifier': {
-
+        'max_depth': 50,
+        'class_weight': {0: 1.0, 1: 10.0}
     }
 }
 
-
-
-FIT_HPARAMS_DICT = {
-    'LinearSVC': {
-        'C': 1,
-        'class_weight': 'balanced'
-    },
-    'LogisticRegression': {
-
-    },
-    'Perceptron': {
-
-    },
-    'SGDClassifier': {
-
-    },
-    'RidgeClassifier': {
-
-    },
-    'SGDOneClassSVM': {
-
-    },
-    'GradientBoostingClassifier': {
-
-    },
-    'RandomForestClassifier': {
-
-    },
-    'AdaBoostClassifier': {
-
-    }
-}
+# for k in HPARAMS_DICT.keys():
+#     HPARAMS_DICT[k].update(_common_hparams)
 
 
 
