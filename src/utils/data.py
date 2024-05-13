@@ -103,7 +103,6 @@ def load_dataset(ds_root_path: str = DS_ROOT_PATH,
     return data_dict
 
 
-
 def load_and_preprocess_dataset(ds_root_path: str = DS_ROOT_PATH,
                                 updated=True,
                                 reduced=None,
@@ -140,7 +139,7 @@ def load_and_preprocess_dataset(ds_root_path: str = DS_ROOT_PATH,
         print(f"### number of all-zero samples removed from train set: "
               f"{idx_non_zero_tr_samples.size - idx_non_zero_tr_samples.sum()}")
 
-    print(f"### Number of features not present in train set: {X_train.shape[1]}")
+    print(f"### Number of features present in train set: {X_train.shape[1]}")
 
     if isinstance(max_train_samples, int):
         X_train = X_train[:max_train_samples, :]
