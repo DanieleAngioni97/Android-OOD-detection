@@ -158,7 +158,7 @@ def main():
         from sklearn.neighbors import LocalOutlierFactor
         from sklearn.pipeline import make_pipeline
         from custom_outlier_detectors import MaxConfidence
-        from pytorch_ood.detector import EnergyBased, Entropy, OpenMax
+        from pytorch_ood.detector import EnergyBased, Entropy
         from custom_outlier_detectors import OODDetector
         import torch
 
@@ -176,7 +176,7 @@ def main():
                 'Entropy', OODDetector(clf, Entropy)
             ),
             (
-                'OpenMax', OODDetector(clf, OpenMax)
+                'EnergyBased', OODDetector(clf, EnergyBased)
             )
         ]
 
