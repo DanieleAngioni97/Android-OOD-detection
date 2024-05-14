@@ -6,6 +6,7 @@ import utils.evaluation as ut_eval
 import math
 import numpy as np
 
+DET_MARKERS = '^v<>oD'
 
 def format_mpl(font_size: int = 30):
     mpl.rcParams['mathtext.fontset'] = 'stix'
