@@ -136,9 +136,9 @@ def main():
                 "Local Outlier Factor",
                 LocalOutlierFactor(n_neighbors=35, contamination=outliers_fraction, novelty=True),
             ),
-            (
-                'Entropy', OODDetector(clf, Entropy, rej_perc=outliers_fraction)
-            ),
+            # (
+            #     'Entropy', OODDetector(clf, Entropy, rej_perc=outliers_fraction)
+            # ),
             (
                 'EnergyBased', OODDetector(clf, EnergyBased, rej_perc=outliers_fraction)
             )
@@ -253,7 +253,7 @@ def main():
                 #        for y_pred_rej, y_test in zip(y_preds_rej, y_tests_rej)]
                 # ax.plot(res, marker=DET_MARKERS[k], label=name, alpha=alpha)
                 ax.set_ylim(0, 1)
-                ax.grid(axis='y')
+                # ax.grid(axis='y')
 
 
 
@@ -288,13 +288,10 @@ def main():
             ax = axs[0, i]
             res = [funct(clf.predict(X_test), y_test)
                    for X_test, y_test in zip(X_tests, y_tests)]
-            ax.plot(res, marker='o', linestyle='dashed', color='grey', label='No rejection', alpha=alpha)
+            ax.plot(res, marker='o', linestyle='dotted', color='grey', label='No rejection', alpha=alpha)
 
             ax.set_ylim(0, 1)
             ax.grid(axis='y')
-
-        # axs[0, 0].legend()
-        # axs[1, 0].legend()
 
 
         axs[0, 0].set_title('Precision')
