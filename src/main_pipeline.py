@@ -116,7 +116,8 @@ def main():
         from sklearn.linear_model import SGDOneClassSVM
         from sklearn.neighbors import LocalOutlierFactor
         from sklearn.pipeline import make_pipeline
-        from custom_outlier_detectors import MaxConfidence
+        from custom_outlier_detectors import MaxConfidence, OODDetector
+        from pytorch_ood.detector import EnergyBased, Entropy
 
         outliers_fraction = 0.05
 
@@ -134,6 +135,12 @@ def main():
             (
                 "Local Outlier Factor",
                 LocalOutlierFactor(n_neighbors=35, contamination=outliers_fraction, novelty=True),
+            ),
+            (
+                'Entropy', OODDetector(clf, Entropy)
+            ),
+            (
+                'EnergyBased', OODDetector(clf, EnergyBased)
             )
         ]
 
@@ -143,6 +150,7 @@ def main():
         #                                 fontsize=25, figsize=(5, 10))
         # k = 0
         # name, algorithm = anomaly_algorithms[k]
+        set_thresholds = ['Confidence', 'Entropy', 'EnergyBased']
         for k, (name, algorithm) in enumerate(anomaly_algorithms):
             print(f">>> Detector: {name}")
             detector_fname = f"d-{name.replace(' ', '_')}-m-{model_name}"
@@ -152,7 +160,7 @@ def main():
             else:
                 t0 = time.time()
                 algorithm.fit(X_tests[0])
-                if name == 'Confidence':
+                if name in set_thresholds:
                     algorithm.set_threshold(X_tests[0])
                 t1 = time.time()
                 fm.my_save(algorithm, detector_file_path)
@@ -265,12 +273,11 @@ def main():
                     axs_rej[1, pi].axhline(y=outliers_fraction, xmax=len(X_tests), label='validation rej. fraction',
                                color='grey', linestyle='dashed')
                     axs_rej[1, pi].set_title(titles[pi])
-                    axs_rej[1, pi].set_ylim(0, 1)
+                    # axs_rej[1, pi].set_ylim(0, 1)
                     axs_rej[1, pi].grid('y')
-                    axs_rej[1, pi].set_ylim(0, 1)
 
                 axs_rej[1, pi].plot(curves[pi], label=name,
-                                   # marker='v', color='b', linestyle='dashed',
+                                   marker=ut_viz.DET_MARKERS[k],
                                    alpha=0.7)
 
 
@@ -286,8 +293,9 @@ def main():
             ax.set_ylim(0, 1)
             ax.grid(axis='y')
 
-        axs[0, 0].legend()
-        axs[1, 0].legend()
+        # axs[0, 0].legend()
+        # axs[1, 0].legend()
+
 
         axs[0, 0].set_title('Precision')
         axs[0, 1].set_title('Recall')
@@ -295,6 +303,9 @@ def main():
 
         fig.tight_layout()
         fig.show()
+
+        legend_fig = ut_viz.create_legend(axs[0, 0], figsize=(15, 2), ncol=4)
+        legend_fig.show()
         print("")
     #########################################################
     #   Sweep di C su SVM linear + plot dei pesi
