@@ -171,7 +171,7 @@ def main():
             ),
             (
                 "One-Class SVM",
-                OneClassSVM(nu=outliers_fraction, kernel="linear")),
+                OneClassSVM(nu=outliers_fraction, kernel="rbf")),
             (
                 'Entropy', OODDetector(clf, Entropy)
             ),
