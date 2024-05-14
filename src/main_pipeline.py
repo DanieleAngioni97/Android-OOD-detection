@@ -137,10 +137,10 @@ def main():
                 LocalOutlierFactor(n_neighbors=35, contamination=outliers_fraction, novelty=True),
             ),
             (
-                'Entropy', OODDetector(clf, Entropy)
+                'Entropy', OODDetector(clf, Entropy, rej_perc=outliers_fraction)
             ),
             (
-                'EnergyBased', OODDetector(clf, EnergyBased)
+                'EnergyBased', OODDetector(clf, EnergyBased, rej_perc=outliers_fraction)
             )
         ]
 
@@ -306,6 +306,9 @@ def main():
 
         legend_fig = ut_viz.create_legend(axs[0, 0], figsize=(15, 2), ncol=4)
         legend_fig.show()
+
+        fig.savefig(os.path.join(figures_path, 'OUT_COMPARISON' + '.pdf'))
+        legend_fig.savefig(os.path.join(figures_path, 'LEGEND-OUT_COMPARISON' + '.pdf'))
         print("")
     #########################################################
     #   Sweep di C su SVM linear + plot dei pesi
