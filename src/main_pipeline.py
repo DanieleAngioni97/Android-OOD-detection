@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 
 from sklearn.calibration import CalibratedClassifierCV, CalibrationDisplay, calibration_curve
 import time
+from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
+
 
 def main():
     models_path = '../experiments/sklearn_models/'
@@ -107,49 +109,6 @@ def main():
 
 
 
-
-
-
-
-        print("")
-
-        #########################################################
-        #   REJECTION PHASE
-        #########################################################
-
-        # rej_rate = 0.001
-        # try:
-        #     y_prob = clf.predict_proba(X_val)[:, 1]
-        # except:
-        #     y_prob = clf._predict_proba_lr(X_val)[:, 1]
-        # n_samples = y_test.size
-        # n_rej_samples = int(n_samples * rej_rate)
-        # conf = np.abs(y_prob - 0.5)
-        # sorted_idx = np.argsort(conf)[:n_rej_samples]
-        # rej_threshold = conf[np.argsort(conf)][n_rej_samples]
-        #
-        # print("")
-        #
-        #
-        # # ut_viz.evaluate_and_plot_metrics(clf, X_tests, y_tests, ax=ax)
-        # y_preds_kept, y_tests_kept = [], []
-        # y_preds_rej, y_tests_rej = [], []
-        # for X_test, y_test in zip(X_tests, y_tests):
-        #     try:
-        #         y_prob = clf.predict_proba(X_test)[:, 1]
-        #     except:
-        #         y_prob = clf._predict_proba_lr(X_test)[:, 1]
-        #     y_preds = (y_prob > 0.5).astype(float)
-        #     conf = np.abs(y_prob - 0.5)
-        #     rej_idx = conf < rej_threshold
-        #
-        #     y_preds_kept.append(y_preds[~rej_idx])
-        #     y_tests_kept.append(y_test[~rej_idx])
-        #     y_preds_rej.append(y_preds[rej_idx])
-        #     y_tests_rej.append(y_test[rej_idx])
-
-
-
         from sklearn.covariance import EllipticEnvelope
         from sklearn.ensemble import IsolationForest
         from sklearn.svm import OneClassSVM
@@ -178,10 +137,10 @@ def main():
             )
         ]
 
-        # fig, axs = ut_viz.create_figure(nrows=3, ncols=len(anomaly_algorithms) + 1,
-        #                                 fontsize=20, figsize=(5, 10))
-        fig, axs = ut_viz.create_figure(nrows=3, ncols=len(anomaly_algorithms),
+        fig, axs = ut_viz.create_figure(nrows=2, ncols=3,
                                         fontsize=25, figsize=(5, 10))
+        # fig, axs = ut_viz.create_figure(nrows=3, ncols=len(anomaly_algorithms),
+        #                                 fontsize=25, figsize=(5, 10))
         # k = 0
         # name, algorithm = anomaly_algorithms[k]
         for k, (name, algorithm) in enumerate(anomaly_algorithms):
@@ -218,61 +177,125 @@ def main():
             y_preds_kept, y_tests_kept, y_preds_rej, y_tests_rej = data
 
 
-            # fig, axs = ut_viz.create_figure(nrows=3, ncols=len(anomaly_algorithms) + 1, fontsize=15, figsize=(5, 10))
+                # fig, axs = ut_viz.create_figure(nrows=3, ncols=len(anomaly_algorithms) + 1, fontsize=15, figsize=(5, 10))
 
-            # if k == 0:
-            #     ax = axs[0, 0]
-            #     y_preds = [clf.predict(X_test) for X_test in X_tests]
-            #     ut_viz.plot_metrics(y_preds, y_tests, ax=ax, plot_gw=False)
-            #     ax.set_title("No rejection")
+                # if k == 0:
+                #     ax = axs[0, 0]
+                #     y_preds = [clf.predict(X_test) for X_test in X_tests]
+                #     ut_viz.plot_metrics(y_preds, y_tests, ax=ax, plot_gw=False)
+                #     ax.set_title("No rejection")
+                #     ax.set_ylim(0, 1)
+                #     axs[1, 0].axis('off')
+                #     axs[2, 0].axis('off')
+
+                # fig, axs = ut_viz.create_figure(nrows=3, fontsize=15, figsize=(5, 10))
+            #     ax = axs[0, k]
+            #     ut_viz.plot_metrics(y_preds_kept, y_tests_kept, ax=ax, plot_gw=False)
+            #     ax.set_title(f"{name}")
+            #     ax.set_ylabel('Kept')
             #     ax.set_ylim(0, 1)
-            #     axs[1, 0].axis('off')
-            #     axs[2, 0].axis('off')
+            #
+            #     ax = axs[1, k]
+            #     ut_viz.plot_metrics(y_preds_rej, y_tests_rej, ax=ax, plot_gw=False)
+            #     # ax.set_title(f"{model_name}\n{hparams}")
+            #     ax.set_ylabel('Rejected')
+            #     ax.set_ylim(0, 1)
+            #
+            #     ax = axs[2, k]
+            #
+            #     n_rej_gw = np.array([(y_test_rej == 0).sum() for y_test_rej in y_tests_rej])
+            #     n_rej_mw = np.array([(y_test_rej == 1).sum() for y_test_rej in y_tests_rej])
+            #     n_rej = np.array([y_test_rej.size for y_test_rej in y_tests_rej])
+            #
+            #     n_gw_per_month = np.array([(y_test == 0).sum() for y_test in y_tests])
+            #     n_mw_per_month = np.array([(y_test == 1).sum() for y_test in y_tests])
+            #     n_sample_per_month = np.array([y_test.size for y_test in y_tests])
+            #
+            #     ax.axhline(y=outliers_fraction, xmax=len(X_tests), label='validation rej. fraction',
+            #                color='grey', linestyle='dashed')
+            #     ax.plot(n_rej / n_sample_per_month, label='rejected samples (%)',
+            #             marker='v', color='b', linestyle='solid', alpha=0.7)
+            #     ax.plot(n_rej_gw / n_gw_per_month, label='rejected goodware (%)',
+            #             marker='v', color='g', linestyle='dashed', alpha=0.7)
+            #     ax.plot(n_rej_mw / n_mw_per_month, label='rejected malware (%)',
+            #             marker='^', color='r', linestyle='dashed', alpha=0.7)
+            #     ax.set_ylim(0, 1)
+            #     # ax.set_ylabel('Kept')
+            #
+            #     ax.legend()
+            #     print("")
+            #
+            # fig.tight_layout()
+            # fig.show()
+            # fig.savefig(os.path.join(figures_path, 'OUT_COMPARISON-' + m + '.pdf'))
+            # # fname = name.replace(' ', '_')
+            # # fig.savefig(f'../figures/{fname}.pdf')
+            # print("")
 
-            # fig, axs = ut_viz.create_figure(nrows=3, fontsize=15, figsize=(5, 10))
-            ax = axs[0, k]
-            ut_viz.plot_metrics(y_preds_kept, y_tests_kept, ax=ax, plot_gw=False)
-            ax.set_title(f"{name}")
-            ax.set_ylabel('Kept')
-            ax.set_ylim(0, 1)
+            alpha = 0.7
+            for i, (funct, metric_name) in enumerate(zip((recall_score, precision_score, f1_score),
+                                                         ('Precision', 'Recall', 'F1-score'))):
+                ax = axs[0, i]
+                res = [funct(y_pred_kept, y_test)
+                       for y_pred_kept, y_test in zip(y_preds_kept, y_tests_kept)]
+                ax.plot(res, marker=ut_viz.DET_MARKERS[k], label=name, alpha=alpha)
+                #
+                # ax = axs[1, i]
+                # res = [funct(y_pred_rej, y_test)
+                #        for y_pred_rej, y_test in zip(y_preds_rej, y_tests_rej)]
+                # ax.plot(res, marker=DET_MARKERS[k], label=name, alpha=alpha)
+                ax.set_ylim(0, 1)
+                ax.grid(axis='y')
 
-            ax = axs[1, k]
-            ut_viz.plot_metrics(y_preds_rej, y_tests_rej, ax=ax, plot_gw=False)
-            # ax.set_title(f"{model_name}\n{hparams}")
-            ax.set_ylabel('Rejected')
-            ax.set_ylim(0, 1)
 
-            ax = axs[2, k]
-
-            n_rej_gw = np.array([(y_test_rej == 0).sum() for y_test_rej in y_tests_rej])
-            n_rej_mw = np.array([(y_test_rej == 1).sum() for y_test_rej in y_tests_rej])
-            n_rej = np.array([y_test_rej.size for y_test_rej in y_tests_rej])
 
             n_gw_per_month = np.array([(y_test == 0).sum() for y_test in y_tests])
             n_mw_per_month = np.array([(y_test == 1).sum() for y_test in y_tests])
             n_sample_per_month = np.array([y_test.size for y_test in y_tests])
 
-            ax.axhline(y=outliers_fraction, xmax=len(X_tests), label='validation rej. fraction',
-                       color='grey', linestyle='dashed')
-            ax.plot(n_rej / n_sample_per_month, label='rejected samples (%)',
-                    marker='v', color='b', linestyle='solid', alpha=0.7)
-            ax.plot(n_rej_gw / n_gw_per_month, label='rejected goodware (%)',
-                    marker='v', color='g', linestyle='dashed', alpha=0.7)
-            ax.plot(n_rej_mw / n_mw_per_month, label='rejected malware (%)',
-                    marker='^', color='r', linestyle='dashed', alpha=0.7)
-            ax.set_ylim(0, 1)
-            # ax.set_ylabel('Kept')
+            n_rej_gw = np.array([(y_test_rej == 0).sum() for y_test_rej in y_tests_rej]) / n_gw_per_month
+            n_rej_mw = np.array([(y_test_rej == 1).sum() for y_test_rej in y_tests_rej]) / n_mw_per_month
+            n_rej = np.array([y_test_rej.size for y_test_rej in y_tests_rej]) / n_sample_per_month
 
-            ax.legend()
-            print("")
+            axs_rej = axs
+            titles = ['Rejected samples', 'Rejected goodware', 'Rejected malware']
+            curves = [n_rej, n_rej_gw, n_rej_mw]
+            for pi in range(3):
+                if k == 0:
+                    axs_rej[1, pi].axhline(y=outliers_fraction, xmax=len(X_tests), label='validation rej. fraction',
+                               color='grey', linestyle='dashed')
+                    axs_rej[1, pi].set_title(titles[pi])
+                    axs_rej[1, pi].set_ylim(0, 1)
+                    axs_rej[1, pi].grid('y')
+                    axs_rej[1, pi].set_ylim(0, 1)
+
+                axs_rej[1, pi].plot(curves[pi], label=name,
+                                   # marker='v', color='b', linestyle='dashed',
+                                   alpha=0.7)
+
+
+
+        alpha = 0.7
+        for i, (funct, metric_name) in enumerate(zip((recall_score, precision_score, f1_score),
+                                                     ('Precision', 'Recall', 'F1-score'))):
+            ax = axs[0, i]
+            res = [funct(clf.predict(X_test), y_test)
+                   for X_test, y_test in zip(X_tests, y_tests)]
+            ax.plot(res, marker='o', linestyle='dashed', color='grey', label='No rejection', alpha=alpha)
+
+            ax.set_ylim(0, 1)
+            ax.grid(axis='y')
+
+        axs[0, 0].legend()
+        axs[1, 0].legend()
+
+        axs[0, 0].set_title('Precision')
+        axs[0, 1].set_title('Recall')
+        axs[0, 2].set_title('F1-score')
 
         fig.tight_layout()
         fig.show()
-        fig.savefig(os.path.join(figures_path, 'OUT_COMPARISON-' + m + '.pdf'))
-        # fname = name.replace(' ', '_')
-        # fig.savefig(f'../figures/{fname}.pdf')
         print("")
-
     #########################################################
     #   Sweep di C su SVM linear + plot dei pesi
     #########################################################
