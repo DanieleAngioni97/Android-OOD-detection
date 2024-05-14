@@ -23,6 +23,20 @@ def create_figure(nrows=1, ncols=1, figsize=(5, 5), squeeze=True, fontsize=30):
     return fig, axs
 
 
+
+def create_legend(ax, figsize=(10, 0.5), ncol=None):
+    # create legend
+    h, l = ax.get_legend_handles_labels()
+    legend_dict = dict(zip(l, h))
+    legend_fig = plt.figure(figsize=figsize)
+
+    legend_fig.legend(legend_dict.values(), legend_dict.keys(), loc='center',
+                      ncol=len(legend_dict.values()) if ncol is None else ncol, frameon=False)
+    legend_fig.tight_layout()
+
+    return legend_fig
+
+
 def plot_metrics(y_preds, y_tests, ax=None,
                               title='', ylabel='',
                  plot_rec=True, plot_prec=True, plot_f1=True, plot_gw=True):
